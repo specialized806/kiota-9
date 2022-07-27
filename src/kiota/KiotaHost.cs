@@ -24,7 +24,7 @@ public class KiotaHost {
         var outputOption = new Option<string>("--output", () => defaultConfiguration.OutputPath, "The output directory path for the generated code files.");
         outputOption.AddAlias("-o");
         outputOption.ArgumentHelpName = "path";
-        
+
         var languageOption = new Option<GenerationLanguage>("--language", "The target language for the generated code files.");
         languageOption.AddAlias("-l");
         languageOption.IsRequired = true;
@@ -47,8 +47,11 @@ public class KiotaHost {
         var backingStoreOption = new Option<bool>("--backing-store", () => defaultConfiguration.UsesBackingStore, "Enables backing store for models.");
         backingStoreOption.AddAlias("-b");
 
+        var modelsOnlyOption = new Option<bool>("--models-only", () => defaultConfiguration.ShouldOnlyGenerateModels, "Only generates code for models, for TypeScript this will only output model interfaces and enums, implicitly disables use of backing store when true.");
+        modelsOnlyOption.AddAlias("-mo");
+
         var serializerOption = new Option<List<string>>(
-            "--serializer", 
+            "--serializer",
             () => defaultConfiguration.Serializers.ToList(),
             "The fully qualified class names for serializers. Accepts multiple values.");
         serializerOption.AddAlias("-s");
@@ -78,6 +81,7 @@ public class KiotaHost {
             namespaceOption,
             logLevelOption,
             backingStoreOption,
+            modelsOnlyOption,
             serializerOption,
             deserializerOption,
             cleanOutputOption,
@@ -92,6 +96,7 @@ public class KiotaHost {
             NamespaceOption = namespaceOption,
             LogLevelOption = logLevelOption,
             BackingStoreOption = backingStoreOption,
+            ModelsOnlyOption = modelsOnlyOption,
             SerializerOption = serializerOption,
             DeserializerOption = deserializerOption,
             CleanOutputOption = cleanOutputOption,

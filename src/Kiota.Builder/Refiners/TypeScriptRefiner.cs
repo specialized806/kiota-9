@@ -88,16 +88,36 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
         );
         AddModelsInterfaces(generatedCode);
         ReplaceRequestConfigurationsQueryParamsWithInterfaces(generatedCode);
-        AddGetterAndSetterMethods(generatedCode,
-        new() {
-                CodePropertyKind.Custom,
-                CodePropertyKind.AdditionalData,
-        },
-        _configuration.UsesBackingStore,
-        false,
-        string.Empty,
-        string.Empty);
+        AddGetterAndSetterMethods(
+            generatedCode,
+            new() {
+                    CodePropertyKind.Custom,
+                    CodePropertyKind.AdditionalData,
+            },
+            _configuration.UsesBackingStore,
+            false,
+            string.Empty,
+            string.Empty
+        );
 
+        RemoveClassModels(generatedCode);
+    }
+
+    private void RemoveClassModels(CodeElement currentElement)
+    {
+        if (_configuration.ShouldOnlyGenerateModels) {
+            if (currentElement is CodeNamespace ns && _configuration.ModelsNamespaceName == currentElement.Name) {
+                // reduce types to interfaces and enums (remove classes)
+                foreach (var m in ns.GetChildElements(true)) {
+                    if (m is CodeClass cc) {
+                        // classes are still stored in the underlying dictionary using the original name so we need to trim off the suffix
+                        ns.RemoveChildElementByName(cc.Name.Replace(FinalModelClassNameSuffix, ""));
+                    }
+                }
+                return;
+            }
+            CrawlTree(currentElement, RemoveClassModels);
+        }
     }
 
     private static readonly CodeUsingDeclarationNameComparer usingComparer = new();
@@ -310,7 +330,7 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
     {
         GenerateModelInterfaces(
            generatedCode,
-           x => $"{x.Name.ToFirstCharacterUpperCase()}Interface".ToFirstCharacterUpperCase()
+           x => $"{x.Name.ToFirstCharacterUpperCase()}{TemporaryInterfaceNameSuffix}".ToFirstCharacterUpperCase()
        );
 
         RenameModelInterfacesAndClasses(generatedCode);
@@ -428,8 +448,8 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
     private static CodeInterface CreateModelInterface(CodeClass modelClass, Func<CodeClass, string> interfaceNamingCallback)
     {
         /*
-         * Temporarily name the interface with "Interface" suffix 
-         * since adding code elements of the same name in the same namespace causes error. 
+         * Temporarily name the interface with "Interface" suffix
+         * since adding code elements of the same name in the same namespace causes error.
          */
 
         var temporaryInterfaceName = interfaceNamingCallback.Invoke(modelClass);
@@ -582,7 +602,7 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
     {
         modelClass.AddUsing(propertyTypeAndUsing.Item2);
         /***
-        * Append "impl" and add class property type in  the model class usings as they will be required by the serializer method. 
+        * Append "impl" and add class property type in  the model class usings as they will be required by the serializer method.
         */
         if (modelClass.Name != propertyClass.Name)
         {
@@ -608,7 +628,7 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
     {
         /*
          * Add properties to interfaces
-         * Replace model classes by interfaces for property types 
+         * Replace model classes by interfaces for property types
          */
         foreach (var mProp in properties)
         {

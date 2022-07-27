@@ -8,6 +8,7 @@ namespace Kiota.Builder {
         public string ClientClassName { get; set; } = "ApiClient";
         public string ClientNamespaceName { get; set; } = "ApiSdk";
         public string NamespaceNameSeparator { get; set; } = ".";
+        public bool ShouldOnlyGenerateModels {get; set;} = false;
         public string ModelsNamespaceName { get => $"{ClientNamespaceName}{NamespaceNameSeparator}models"; }
         public GenerationLanguage Language { get; set; } = GenerationLanguage.CSharp;
         public string ApiRootUrl { get; set; }
