@@ -1,4 +1,5 @@
-﻿using Kiota.Builder.CodeDOM;
+﻿using System.Linq;
+using Kiota.Builder.CodeDOM;
 using Kiota.Builder.Extensions;
 
 namespace Kiota.Builder.Writers.TypeScript;
@@ -27,5 +28,40 @@ public class CodeNameSpaceWriter : BaseElementWriter<CodeNamespace, TypeScriptCo
         {
             writer.WriteLine($"export * from './{c.Name.ToFirstCharacterLowerCase()}'");
         }
+        var requestBuilder = codeElement.Classes.FirstOrDefault(x => x.Kind == CodeClassKind.RequestBuilder);
+
+        if (requestBuilder != null) {
+            WriteCodeDeclaration(requestBuilder, writer);
+        }
     }
+
+    private void WriteCodeDeclaration(CodeClass requestBuilder, LanguageWriter writer)
+    {
+        var parentRequestBuilder = (requestBuilder.Parent.Parent as CodeNamespace).Classes.FirstOrDefault(x => x.Kind == CodeClassKind.RequestBuilder);
+        if (parentRequestBuilder != null) {
+            writer.WriteLine($"declare module \"../{parentRequestBuilder.Name}{{");
+            writer.IncreaseIndent();
+            writer.WriteLine($"interface {parentRequestBuilder.Name}{{");
+            writer.IncreaseIndent();
+            writer.WriteLine($"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}:{requestBuilder.Name.ToFirstCharacterLowerCase()}");
+            writer.WriteLine("}");
+            writer.IncreaseIndent();
+            writer.WriteLine("}");
+        }
+    }
+
+//    Reflect.defineProperty(UserItemRequestBuilder.prototype, "settings", {
+//    configurable: true,
+//    enumerable: true,
+//    get: function(this: UserItemRequestBuilder)
+//    {
+//        return this.create(SettingsRequestBuilder);
+//    },
+//});
+
+    
+
+
+
+
 }
