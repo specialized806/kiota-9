@@ -25,7 +25,7 @@ public class CodeFunctionWriter : BaseElementWriter<CodeFunction, TypeScriptConv
         _codeUsingWriter.WriteCodeElement(codeElement.StartBlock.Usings, codeElement.GetImmediateParentOfType<CodeNamespace>(), writer);
         var codeMethod = codeElement.OriginalLocalMethod;
 
-        var returnType = codeMethod.Kind == CodeMethodKind.Factory ? conventions.GetTypeString(codeMethod.ReturnType, codeElement) : string.Empty;
+        var returnType = codeMethod.Kind != CodeMethodKind.Factory ? conventions.GetTypeString(codeMethod.ReturnType, codeElement) : string.Empty;
         CodeMethodWriter.WriteMethodPrototypeInternal(codeElement.OriginalLocalMethod, writer, returnType, false, conventions, true);
 
         writer.IncreaseIndent();
@@ -101,13 +101,29 @@ public class CodeFunctionWriter : BaseElementWriter<CodeFunction, TypeScriptConv
         {
             writer.WriteLine($"serialize{inherits.TypeDefinition.Name.ToFirstCharacterUpperCase()}(writer, {param.Name.ToFirstCharacterLowerCase()})");
         }
+        writer.WriteLine($"for (const [key, value] of Object.entries({codeInterface.Name.ToFirstCharacterLowerCase()})){{");
+        writer.IncreaseIndent();
+        writer.WriteLine("switch(key){");
+        writer.IncreaseIndent();
 
-        foreach (var otherProp in codeInterface.Properties.Where(static x => x.Kind == CodePropertyKind.Custom && !x.ExistsInBaseType && !x.ReadOnly) )
+        foreach (var otherProp in codeInterface.Properties.Where(static x => x.Kind == CodePropertyKind.Custom && !x.ExistsInBaseType && !x.ReadOnly))
         {
 
+            writer.WriteLine($"case \"{otherProp.Name.ToFirstCharacterLowerCase()}\":");
             WritePropertySerializer(codeInterface.Name.ToFirstCharacterLowerCase(), otherProp, writer, codeElement);
+            writer.WriteLine("break");
+
         }
 
+        writer.WriteLine($"default:");
+        writer.WriteLine($"writer.writeAdditionalData(key, value);");
+        writer.WriteLine("break");
+
+        writer.DecreaseIndent();
+
+        writer.WriteLine("}");
+        writer.DecreaseIndent();
+        writer.WriteLine("}");
         writer.DecreaseIndent();
     }
 
@@ -126,7 +142,7 @@ public class CodeFunctionWriter : BaseElementWriter<CodeFunction, TypeScriptConv
         var propType = localConventions.GetTypeString(codeProperty.Type, codeProperty.Parent, false);
         writer.IncreaseIndent();
 
-        var serializationName = GetSerializationMethodName(codeProperty.Type, modelParamName);
+        var serializationName = GetSerializationMethodName(codeProperty.Type);
 
         if (serializationName == "writeObjectValue" || serializationName == "writeCollectionOfObjectValues")
         {
@@ -144,12 +160,12 @@ public class CodeFunctionWriter : BaseElementWriter<CodeFunction, TypeScriptConv
         writer.DecreaseIndent();
     }
 
-    private string GetSerializationMethodName(CodeTypeBase propType, string modelParamName)
+    private string GetSerializationMethodName(CodeTypeBase propType)
     {
         var propertyType = localConventions.TranslateType(propType);
         if (propType is CodeType currentType)
         {
-            var result = GetSerializationMethodNameForCodeType(currentType, propertyType, modelParamName);
+            var result = GetSerializationMethodNameForCodeType(currentType, propertyType);
             if (!String.IsNullOrWhiteSpace(result))
             {
                 return result;
@@ -162,7 +178,7 @@ public class CodeFunctionWriter : BaseElementWriter<CodeFunction, TypeScriptConv
         };
     }
 
-    private static string GetSerializationMethodNameForCodeType(CodeType propType, string propertyType, string modelParamName)
+    private static string GetSerializationMethodNameForCodeType(CodeType propType, string propertyType)
     {
         var isCollection = propType.CollectionKind != CodeTypeBase.CodeTypeCollectionKind.None;
         if (propType.TypeDefinition is CodeEnum currentEnum)

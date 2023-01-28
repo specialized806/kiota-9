@@ -108,15 +108,15 @@ public class TypeScriptConventionService : CommonLanguageConventionService
             "integer" or "int64" or "float" or "double" or "byte" or "sbyte" or "decimal" => "number",
             "binary" or "Guid" => "string",
             "String" or "Object" or "Boolean" or "Void" or "string" or "object" or "boolean" or "void" => type.Name.ToFirstCharacterLowerCase(), // little casing hack
-            _ => typeName(type) ?? "object",
+            _ => GetCodeTypeName(type) ?? "object",
         };
     }
 
-    private string typeName(CodeType codeType)
+    private static string GetCodeTypeName(CodeType codeType)
     {
         if (codeType.TypeDefinition is CodeFunction) {
             return codeType.TypeDefinition?.Name;
-        };
+        }
 
         return (codeType.TypeDefinition?.Name ?? codeType.Name).ToFirstCharacterUpperCase();
     }
