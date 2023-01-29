@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using System.Reflection;
 using Kiota.Builder.CodeDOM;
 using Kiota.Builder.Extensions;
 
@@ -38,30 +40,55 @@ public class CodeNameSpaceWriter : BaseElementWriter<CodeNamespace, TypeScriptCo
     private void WriteCodeDeclaration(CodeClass requestBuilder, LanguageWriter writer)
     {
         var parentRequestBuilder = (requestBuilder.Parent.Parent as CodeNamespace).Classes.FirstOrDefault(x => x.Kind == CodeClassKind.RequestBuilder);
-        if (parentRequestBuilder != null) {
-            writer.WriteLine($"declare module \"../{parentRequestBuilder.Name}{{");
+
+
+        if (parentRequestBuilder != null)
+        {
+            
+            var childRequestBuilderAlias = requestBuilder.Name.ToFirstCharacterUpperCase();
+            var parentRequestBuilderName = parentRequestBuilder.Name.ToFirstCharacterUpperCase();
+            var parentChildNameIsSame = false;
+            if (string.Equals(parentRequestBuilder.Name,requestBuilder.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                childRequestBuilderAlias = childRequestBuilderAlias + "Child";
+                parentChildNameIsSame = true;
+            }
+            writer.WriteLine($"import {{{requestBuilder.Name.ToFirstCharacterUpperCase()} {(parentChildNameIsSame ? "as " + childRequestBuilderAlias: string.Empty)}}} from \"./{requestBuilder.Name.ToFirstCharacterLowerCase()}\"");
+            writer.WriteLine($"import {{{parentRequestBuilderName}}} from \"../{parentRequestBuilder.Name.ToFirstCharacterLowerCase()}\"");
+            writer.WriteLine($"declare module \"../{parentRequestBuilder.Name}\"{{");
             writer.IncreaseIndent();
             writer.WriteLine($"interface {parentRequestBuilder.Name}{{");
             writer.IncreaseIndent();
-            writer.WriteLine($"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}:{requestBuilder.Name.ToFirstCharacterLowerCase()}");
+            writer.WriteLine($"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}:{childRequestBuilderAlias}");
+            writer.DecreaseIndent();
             writer.WriteLine("}");
+            writer.DecreaseIndent();
+            writer.WriteLine("}");
+
+
+            writer.WriteLine($"Reflect.defineProperty({parentRequestBuilderName}.prototype, \"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}\", {{");
             writer.IncreaseIndent();
+            writer.WriteLine("configurable: true,");
+            writer.WriteLine("enumerable: true,");
+            writer.WriteLine($"get: function(this: {parentRequestBuilderName}) {{");
+            writer.IncreaseIndent();
+            writer.WriteLine($"return new {childRequestBuilderAlias}(this.pathParameters,this.requestAdapter)");
+           
+            writer.DecreaseIndent();
             writer.WriteLine("}");
+            writer.DecreaseIndent();
+            writer.WriteLine("})");
+
         }
+        //    Reflect.defineProperty(UserItemRequestBuilder.prototype, "settings", {
+        //    configurable: true,
+        //    enumerable: true,
+        //    get: function(this: UserItemRequestBuilder)
+        //    {
+        //        return this.create(SettingsRequestBuilder);
+        //    },
+        //});
     }
 
-//    Reflect.defineProperty(UserItemRequestBuilder.prototype, "settings", {
-//    configurable: true,
-//    enumerable: true,
-//    get: function(this: UserItemRequestBuilder)
-//    {
-//        return this.create(SettingsRequestBuilder);
-//    },
-//});
-
-    
-
-
-
-
 }
+

@@ -110,10 +110,39 @@ public class TypeScriptRefiner : CommonLanguageRefiner, ILanguageRefiner
             AliasUsingsWithSameSymbol(generatedCode);
             AddStaticMethodsUsingsToDeserializerFunctions(generatedCode, factoryNameCallbackFromType);
             cancellationToken.ThrowIfCancellationRequested();
+            ApplySelectiveImport(generatedCode);
         }, cancellationToken);
     }
 
-    protected static void AddStaticMethodsUsingsToDeserializerFunctions(CodeElement currentElement, Func<CodeType, string> functionNameCallback)
+    private static void ApplySelectiveImport(CodeElement codeElement)
+    {
+        if (codeElement is CodeClass codeClass && codeClass.Kind == CodeClassKind.RequestBuilder)
+        {
+            //RemoveReferenceToChildRequestBuilders(codeClass);
+            MakePathParamPublis(codeClass);
+        }
+        CrawlTree(codeElement, ApplySelectiveImport);
+    }
+
+    private static void MakePathParamPublis(CodeClass requestBuilder)
+    {
+        var pathParam = requestBuilder.Properties.Where(x => x.Kind == CodePropertyKind.PathParameters).FirstOrDefault();
+
+        if (pathParam != null) {
+
+            pathParam.Access = AccessModifier.Public;
+                }
+
+        var requestAdapter = requestBuilder.Properties.Where(x => x.Kind == CodePropertyKind.RequestAdapter).FirstOrDefault();
+
+        if (requestAdapter != null)
+        {
+
+            requestAdapter.Access = AccessModifier.Public;
+        }
+    }
+
+    private static void AddStaticMethodsUsingsToDeserializerFunctions(CodeElement currentElement, Func<CodeType, string> functionNameCallback)
     {
         if (currentElement is CodeMethod currentMethod &&
             currentMethod.IsOfKind(CodeMethodKind.Deserializer) &&
