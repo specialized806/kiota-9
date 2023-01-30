@@ -37,10 +37,41 @@ public class CodeNameSpaceWriter : BaseElementWriter<CodeNamespace, TypeScriptCo
         }
     }
 
+    private (CodeClass, int) GetReferingParentRequestBuilder(CodeClass childRequestBuilder)
+    {
+        var parentNamespace = childRequestBuilder.Parent.Parent as CodeNamespace;
+        var found = false;
+        var count = 0;
+        while (found == false && parentNamespace != null)
+        {
+            var req = parentNamespace.Classes.Where(x=>x.Kind == CodeClassKind.RequestBuilder).
+                FirstOrDefault(x=> x.Methods.Any(y => y.Kind == CodeMethodKind.IndexerBackwardCompatibility && y.ReturnType is CodeType codeType && codeType.TypeDefinition == childRequestBuilder)!);
+            Console.WriteLine(count);
+            if(req != null)
+            {
+                return (req,count);
+            }
+            count++;
+            parentNamespace = parentNamespace.Parent as CodeNamespace;
+            
+        }
+        return (null,0);
+    }
     private void WriteCodeDeclaration(CodeClass requestBuilder, LanguageWriter writer)
     {
+        var isItem = true;
         var parentRequestBuilder = (requestBuilder.Parent.Parent as CodeNamespace).Classes.FirstOrDefault(x => x.Kind == CodeClassKind.RequestBuilder);
+        var str = "./";
+        if (requestBuilder.Name.EndsWith("ItemRequestBuilder")) {
+            isItem = true;
+            var res = GetReferingParentRequestBuilder(requestBuilder);
+            parentRequestBuilder = res.Item1;
 
+            if (res.Item2 == 1)
+                str = "../";
+            // parentRequestBuilder = (requestBuilder.Parent.Parent.Parent as CodeNamespace).Classes.FirstOrDefault(x => x.Kind == CodeClassKind.RequestBuilder);
+        }
+        
 
         if (parentRequestBuilder != null)
         {
@@ -54,8 +85,12 @@ public class CodeNameSpaceWriter : BaseElementWriter<CodeNamespace, TypeScriptCo
                 parentChildNameIsSame = true;
             }
             writer.WriteLine($"import {{{requestBuilder.Name.ToFirstCharacterUpperCase()} {(parentChildNameIsSame ? "as " + childRequestBuilderAlias: string.Empty)}}} from \"./{requestBuilder.Name.ToFirstCharacterLowerCase()}\"");
-            writer.WriteLine($"import {{{parentRequestBuilderName}}} from \"../{parentRequestBuilder.Name.ToFirstCharacterLowerCase()}\"");
-            writer.WriteLine($"declare module \"../{parentRequestBuilder.Name}\"{{");
+            writer.WriteLine($"import {{{parentRequestBuilderName}}} from \"{(isItem ? str : string.Empty)}../{parentRequestBuilder.Name.ToFirstCharacterLowerCase()}\"");
+            if (isItem)
+            {
+                writer.WriteLine("import { getPathParameters } from \"@microsoft/kiota-abstractions\";");
+            }
+            writer.WriteLine($"declare module \"{(isItem? str :string.Empty)}../{parentRequestBuilder.Name.ToFirstCharacterLowerCase()}\"{{");
             writer.IncreaseIndent();
             writer.WriteLine($"interface {parentRequestBuilder.Name}{{");
             writer.IncreaseIndent();
@@ -65,20 +100,37 @@ public class CodeNameSpaceWriter : BaseElementWriter<CodeNamespace, TypeScriptCo
             writer.DecreaseIndent();
             writer.WriteLine("}");
 
+            if (isItem)
+            {
+                writer.WriteLine($"Reflect.defineProperty({parentRequestBuilderName}.prototype, \"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}\", {{");
+                writer.IncreaseIndent();
+                writer.WriteLine("configurable: true,");
+                writer.WriteLine("enumerable: true,");
+                writer.WriteLine($"get: function(this: {parentRequestBuilderName}, id:String) {{");
+                writer.IncreaseIndent();
+                writer.WriteLine("const urlTplParams = getPathParameters(this.pathParameters);\r\n urlTplParams[\"attachment%2Did\"] = id");
 
-            writer.WriteLine($"Reflect.defineProperty({parentRequestBuilderName}.prototype, \"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}\", {{");
-            writer.IncreaseIndent();
-            writer.WriteLine("configurable: true,");
-            writer.WriteLine("enumerable: true,");
-            writer.WriteLine($"get: function(this: {parentRequestBuilderName}) {{");
-            writer.IncreaseIndent();
-            writer.WriteLine($"return new {childRequestBuilderAlias}(this.pathParameters,this.requestAdapter)");
-           
-            writer.DecreaseIndent();
-            writer.WriteLine("}");
-            writer.DecreaseIndent();
-            writer.WriteLine("})");
+                writer.WriteLine($"return new {childRequestBuilderAlias}(this.pathParameters,this.requestAdapter)");
+                writer.DecreaseIndent();
+                //writer.WriteLine($"}} as (id) => {childRequestBuilderAlias}");
+                writer.WriteLine($"}} as any");
+                writer.DecreaseIndent();
+                writer.WriteLine("})");
+            }
+            else {
+                writer.WriteLine($"Reflect.defineProperty({parentRequestBuilderName}.prototype, \"{requestBuilder.Name.Split("RequestBuilder")[0].ToFirstCharacterLowerCase()}\", {{");
+                writer.IncreaseIndent();
+                writer.WriteLine("configurable: true,");
+                writer.WriteLine("enumerable: true,");
+                writer.WriteLine($"get: function(this: {parentRequestBuilderName}) {{");
+                writer.IncreaseIndent();
+                writer.WriteLine($"return new {childRequestBuilderAlias}(this.pathParameters,this.requestAdapter)");
 
+                writer.DecreaseIndent();
+                writer.WriteLine("}");
+                writer.DecreaseIndent();
+                writer.WriteLine("})");
+            }
         }
         //    Reflect.defineProperty(UserItemRequestBuilder.prototype, "settings", {
         //    configurable: true,

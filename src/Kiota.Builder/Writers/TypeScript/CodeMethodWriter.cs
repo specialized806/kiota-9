@@ -21,7 +21,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, TypeScriptConventi
         ArgumentNullException.ThrowIfNull(codeElement);
         if (codeElement.ReturnType == null) throw new InvalidOperationException($"{nameof(codeElement.ReturnType)} should not be null");
         ArgumentNullException.ThrowIfNull(writer);
-        if (codeElement.Parent is CodeFunction) return;
+        if (codeElement.Parent is CodeFunction || codeElement.Kind == CodeMethodKind.IndexerBackwardCompatibility) return;
         if (!(codeElement.Parent is CodeClass)) throw new InvalidOperationException("the parent of a method should be a class");
 
         localConventions = new TypeScriptConventionService(writer); //because we allow inline type definitions for methods parameters
@@ -112,10 +112,10 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, TypeScriptConventi
     }
     private void WriteIndexerBody(CodeMethod codeElement, CodeClass parentClass, string returnType, LanguageWriter writer)
     {
-        var pathParametersProperty = parentClass.GetPropertyOfKind(CodePropertyKind.PathParameters);
-        localConventions.AddParametersAssignment(writer, pathParametersProperty.Type, $"this.{pathParametersProperty.Name}",
-            (codeElement.OriginalIndexer.IndexType, codeElement.OriginalIndexer.SerializationName, "id"));
-        localConventions.AddRequestBuilderBody(parentClass, returnType, writer, conventions.TempDictionaryVarName);
+        //var pathParametersProperty = parentClass.GetPropertyOfKind(CodePropertyKind.PathParameters);
+        //localConventions.AddParametersAssignment(writer, pathParametersProperty.Type, $"this.{pathParametersProperty.Name}",
+        //    (codeElement.OriginalIndexer.IndexType, codeElement.OriginalIndexer.SerializationName, "id"));
+        //localConventions.AddRequestBuilderBody(parentClass, returnType, writer, conventions.TempDictionaryVarName);
     }
     private void WriteRequestBuilderWithParametersBody(CodeMethod codeElement, CodeClass parentClass, string returnType, LanguageWriter writer)
     {
