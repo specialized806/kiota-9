@@ -15,7 +15,8 @@ public class BaseCodeParameterOrderComparer : IComparer<CodeParameter>
 #pragma warning disable CA1062
             _ => x.Optional.CompareTo(y.Optional) * OptionalWeight +
                  GetKindOrderHint(x.Kind).CompareTo(GetKindOrderHint(y.Kind)) * KindWeight +
-                 StringComparer.OrdinalIgnoreCase.Compare(x.Name, y.Name) * NameWeight,
+                 StringComparer.OrdinalIgnoreCase.Compare(x.Name, y.Name).CompareTo(0) * NameWeight,//normalize result from StringComparer.OrdinalIgnoreCase.Compare to the set {0,1,-1}
+                                                                                                    //as it can return much larger numbers and mess up with the whole comparison
 #pragma warning restore CA1062
         };
     }
