@@ -165,10 +165,13 @@ public class ClassDeclaration : ProprietableBlockDeclaration
         if (inherits is CodeType currentInheritsType &&
             !inherits.IsExternal &&
             currentInheritsType.TypeDefinition is CodeClass currentParentClass)
-            if (currentParentClass.FindChildByName<CodeProperty>(propertyName, false) is CodeProperty currentProperty && !currentProperty.ExistsInBaseType)
+        {
+            var currentProperty = currentParentClass.FindChildByName<CodeProperty>(propertyName, false);
+            currentProperty = (currentProperty == null || currentProperty.ExistsInBaseType) ? GetPropertyFromBaseTypeUsingGettersAndSetters(propertyName, currentParentClass) : currentProperty;
+            if (currentProperty != null && !currentProperty.ExistsInBaseType)
                 return currentProperty;
-            else
-                return currentParentClass.StartBlock.GetOriginalPropertyDefinedFromBaseType(propertyName);
+            return currentParentClass.StartBlock.GetOriginalPropertyDefinedFromBaseType(propertyName);
+        }
         return default;
     }
     public bool InheritsFrom(CodeClass candidate)
@@ -182,6 +185,21 @@ public class ClassDeclaration : ProprietableBlockDeclaration
             else
                 return currentParentClass.StartBlock.InheritsFrom(candidate);
         return false;
+    }
+
+    private CodeProperty? GetPropertyFromBaseTypeUsingGettersAndSetters(string propertyName, CodeClass parentClass)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
+        ArgumentNullException.ThrowIfNull(parentClass);
+        return parentClass.Methods
+            .Where(static x => x.IsOfKind(CodeMethodKind.Getter, CodeMethodKind.Setter))
+            .Where(x =>
+                x.AccessedProperty != null
+                && x.AccessedProperty.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase)
+                && !x.AccessedProperty.ExistsInBaseType)
+            .Select(x => x.AccessedProperty)
+            .DistinctBy(static x => x!.Name)
+            .FirstOrDefault();
     }
 }
 
