@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Kiota.Builder.CodeDOM;
 using Kiota.Builder.Configuration;
@@ -234,5 +235,26 @@ public class PhpLanguageRefinerTests
         subNamespace.AddClass(securityClass);
         await ILanguageRefiner.Refine(new GenerationConfiguration { Language = GenerationLanguage.PHP }, root);
         Assert.Equal(2, modelClass.Usings.Count());
+    }
+    
+    [Fact]
+    public async void AddsSuffixToComposedTypeNames()
+    {
+        var parentClass = root.AddClass(new CodeClass { Name = "parentClass"}).First();
+        var composedTypeProperty = new CodeProperty
+        {
+            Name = "property",
+            Type = new CodeUnionType
+            {
+                Name = "UnionType"
+            },
+            SerializationName = "prop"
+        };
+        var type = (CodeComposedTypeBase)composedTypeProperty.Type;
+        type.AddType(new CodeType { Name = "string" });
+        parentClass.AddProperty(composedTypeProperty);
+        
+        await ILanguageRefiner.Refine(new GenerationConfiguration { Language = GenerationLanguage.PHP, UsesBackingStore = true }, root);
+        Assert.NotNull(root.GetChildElements().Where(static x => x is CodeClass && x.Name.Equals("UnionTypeWrapper", StringComparison.OrdinalIgnoreCase)).FirstOrDefault());
     }
 }

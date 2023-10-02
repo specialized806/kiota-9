@@ -443,7 +443,15 @@ public abstract class CommonLanguageRefiner : ILanguageRefiner
         }
         CrawlTree(currentElement, c => ReplaceBinaryByNativeType(c, symbol, ns, addDeclaration, isNullable));
     }
-    protected static void ConvertUnionTypesToWrapper(CodeElement currentElement, bool usesBackingStore, Func<string, string> refineMethodName, bool supportInnerClasses = true, string markerInterfaceNamespace = "", string markerInterfaceName = "", string markerMethodName = "")
+    protected static void ConvertUnionTypesToWrapper(
+        CodeElement currentElement, 
+        bool usesBackingStore, 
+        Func<string, string> refineMethodName, 
+        bool supportInnerClasses = true, 
+        string markerInterfaceNamespace = "", 
+        string markerInterfaceName = "", 
+        string markerMethodName = "",
+        string composedTypeNameSuffix = "")
     {
         ArgumentNullException.ThrowIfNull(currentElement);
         ArgumentNullException.ThrowIfNull(refineMethodName);
@@ -454,22 +462,22 @@ public abstract class CommonLanguageRefiner : ILanguageRefiner
                 currentMethod.Name = refineMethodName(currentMethod.Name);
 
                 if (currentMethod.ReturnType is CodeComposedTypeBase currentUnionType)
-                    currentMethod.ReturnType = ConvertComposedTypeToWrapper(parentClass, currentUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName);
+                    currentMethod.ReturnType = ConvertComposedTypeToWrapper(parentClass, currentUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName, composedTypeNameSuffix);
                 if (currentMethod.Parameters.Any(static x => x.Type is CodeComposedTypeBase))
                     foreach (var currentParameter in currentMethod.Parameters.Where(static x => x.Type is CodeComposedTypeBase))
-                        currentParameter.Type = ConvertComposedTypeToWrapper(parentClass, (CodeComposedTypeBase)currentParameter.Type, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName);
+                        currentParameter.Type = ConvertComposedTypeToWrapper(parentClass, (CodeComposedTypeBase)currentParameter.Type, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName, composedTypeNameSuffix);
                 if (currentMethod.ErrorMappings.Select(static x => x.Value).OfType<CodeComposedTypeBase>().Any())
                     foreach (var errorUnionType in currentMethod.ErrorMappings.Select(static x => x.Value).OfType<CodeComposedTypeBase>())
-                        currentMethod.ReplaceErrorMapping(errorUnionType, ConvertComposedTypeToWrapper(parentClass, errorUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName));
+                        currentMethod.ReplaceErrorMapping(errorUnionType, ConvertComposedTypeToWrapper(parentClass, errorUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName, composedTypeNameSuffix));
             }
             else if (currentElement is CodeIndexer currentIndexer && currentIndexer.ReturnType is CodeComposedTypeBase currentUnionType)
-                currentIndexer.ReturnType = ConvertComposedTypeToWrapper(parentClass, currentUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName);
+                currentIndexer.ReturnType = ConvertComposedTypeToWrapper(parentClass, currentUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName, composedTypeNameSuffix);
             else if (currentElement is CodeProperty currentProperty && currentProperty.Type is CodeComposedTypeBase currentPropUnionType)
-                currentProperty.Type = ConvertComposedTypeToWrapper(parentClass, currentPropUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName);
+                currentProperty.Type = ConvertComposedTypeToWrapper(parentClass, currentPropUnionType, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName, composedTypeNameSuffix);
         }
         CrawlTree(currentElement, x => ConvertUnionTypesToWrapper(x, usesBackingStore, refineMethodName, supportInnerClasses, markerInterfaceNamespace, markerInterfaceName, markerMethodName));
     }
-    private static CodeTypeBase ConvertComposedTypeToWrapper(CodeClass codeClass, CodeComposedTypeBase codeComposedType, bool usesBackingStore, Func<string, string> refineMethodName, bool supportsInnerClasses, string markerInterfaceNamespace, string markerInterfaceName, string markerMethodName)
+    private static CodeTypeBase ConvertComposedTypeToWrapper(CodeClass codeClass, CodeComposedTypeBase codeComposedType, bool usesBackingStore, Func<string, string> refineMethodName, bool supportsInnerClasses, string markerInterfaceNamespace, string markerInterfaceName, string markerMethodName, string composedTypeNameSuffix)
     {
         ArgumentNullException.ThrowIfNull(codeClass);
         ArgumentNullException.ThrowIfNull(codeComposedType);
@@ -481,7 +489,7 @@ public abstract class CommonLanguageRefiner : ILanguageRefiner
             var @namespace = codeClass.GetImmediateParentOfType<CodeNamespace>();
             newClass = @namespace.AddClass(new CodeClass
             {
-                Name = codeComposedType.Name,
+                Name = codeComposedType.Name + composedTypeNameSuffix,
                 Documentation = new()
                 {
                     Description = description,
@@ -493,7 +501,7 @@ public abstract class CommonLanguageRefiner : ILanguageRefiner
         {
             newClass = targetNamespace.AddClass(new CodeClass
             {
-                Name = codeComposedType.Name,
+                Name = codeComposedType.Name + composedTypeNameSuffix,
                 Documentation = new()
                 {
                     Description = description
@@ -513,7 +521,7 @@ public abstract class CommonLanguageRefiner : ILanguageRefiner
                 codeComposedType.Name = $"{codeComposedType.Name}Wrapper";
             newClass = codeClass.AddInnerClass(new CodeClass
             {
-                Name = codeComposedType.Name,
+                Name = codeComposedType.Name + composedTypeNameSuffix,
                 Documentation = new()
                 {
                     Description = description
