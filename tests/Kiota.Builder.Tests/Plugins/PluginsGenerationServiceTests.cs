@@ -74,7 +74,7 @@ paths:
         {
             OutputPath = outputDirectory,
             OpenAPIFilePath = "openapiPath",
-            PluginTypes = [PluginType.Microsoft, PluginType.APIManifest, PluginType.OpenAI],
+            PluginTypes = [PluginType.APIPlugin, PluginType.APIManifest, PluginType.OpenAI],
             ClientClassName = "client",
             ApiRootUrl = "http://localhost/", //Kiota builder would set this for us
         };
@@ -108,7 +108,7 @@ paths:
         Assert.Equal(OpenApiFileName, v1Manifest.Document.Api.URL);
         Assert.Empty(v1Manifest.Problems);
     }
-    private const string ManifestFileName = "client-microsoft.json";
+    private const string ManifestFileName = "client-apiplugin.json";
     private const string OpenAIPluginFileName = "openai-plugins.json";
     private const string OpenApiFileName = "client-openapi.yml";
 
@@ -171,7 +171,7 @@ components:
         {
             OutputPath = outputDirectory,
             OpenAPIFilePath = "openapiPath",
-            PluginTypes = [PluginType.Microsoft],
+            PluginTypes = [PluginType.APIPlugin],
             ClientClassName = "client",
             ApiRootUrl = "http://localhost/", //Kiota builder would set this for us
         };
@@ -218,6 +218,8 @@ components:
         Assert.Empty(resultDocument.Extensions); // no extension at root (unsupported extension is removed)
         Assert.Equal(2, resultDocument.Paths.Count); // document has only two paths
         Assert.Single(resultDocument.Paths["/test"].Operations[OperationType.Get].Responses); // other responses are removed from the document
+        Assert.NotEmpty(resultDocument.Paths["/test"].Operations[OperationType.Get].Responses["2XX"].Description); // response description string is not empty
         Assert.Single(resultDocument.Paths["/test/{id}"].Operations[OperationType.Get].Responses); // 2 responses originally
+        Assert.NotEmpty(resultDocument.Paths["/test/{id}"].Operations[OperationType.Get].Responses["2XX"].Description);// response description string is not empty
     }
 }

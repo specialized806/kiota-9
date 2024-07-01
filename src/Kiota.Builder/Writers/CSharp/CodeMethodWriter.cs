@@ -10,8 +10,8 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, CSharpConventionSe
 {
     public CodeMethodWriter(CSharpConventionService conventionService) : base(conventionService)
     {
-
     }
+
     public override void WriteCodeElement(CodeMethod codeElement, LanguageWriter writer)
     {
         ArgumentNullException.ThrowIfNull(codeElement);
@@ -350,7 +350,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, CSharpConventionSe
         {
             if (isCollection)
             {
-                var collectionMethod = propType.IsArray ? "?.ToArray()" : "?.ToList()";
+                var collectionMethod = propType.IsArray ? "?.AsArray()" : "?.AsList()";
                 if (currentType.TypeDefinition == null)
                     return $"GetCollectionOfPrimitiveValues<{propertyType}>(){collectionMethod}";
                 else if (currentType.TypeDefinition is CodeEnum)
@@ -365,7 +365,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, CSharpConventionSe
         {
             "byte[]" => "GetByteArrayValue()",
             _ when conventions.IsPrimitiveType(propertyType) => $"Get{propertyType.TrimEnd(CSharpConventionService.NullableMarker).ToFirstCharacterUpperCase()}Value()",
-            _ => $"GetObjectValue<{propertyType.ToFirstCharacterUpperCase()}>({propertyType}.CreateFromDiscriminatorValue)",
+            _ => $"GetObjectValue<{propertyType}>({propertyType}.CreateFromDiscriminatorValue)",
         };
     }
     protected void WriteRequestExecutorBody(CodeMethod codeElement, RequestParams requestParams, CodeClass parentClass, bool isVoid, string returnTypeWithoutCollectionInformation, LanguageWriter writer)
@@ -407,7 +407,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, CSharpConventionSe
         };
         writer.WriteLine($"{prefix}await RequestAdapter.{GetSendRequestMethodName(isVoid, codeElement, codeElement.ReturnType)}(requestInfo{returnTypeFactory}, {errorMappingVarName}, cancellationToken).ConfigureAwait(false);");
         if (codeElement.ReturnType.IsCollection)
-            writer.WriteLine("return collectionResult?.ToList();");
+            writer.WriteLine("return collectionResult?.AsList();");
     }
     private const string RequestInfoVarName = "requestInfo";
     private void WriteRequestGeneratorBody(CodeMethod codeElement, RequestParams requestParams, CodeClass currentClass, LanguageWriter writer)
@@ -671,7 +671,7 @@ public class CodeMethodWriter : BaseElementWriter<CodeMethod, CSharpConventionSe
         {
             "byte[]" => "WriteByteArrayValue",
             _ when conventions.IsPrimitiveType(propertyType) => $"Write{propertyType.TrimEnd(CSharpConventionService.NullableMarker).ToFirstCharacterUpperCase()}Value",
-            _ => $"WriteObjectValue<{propertyType.ToFirstCharacterUpperCase()}{(includeNullableRef ? "?" : string.Empty)}>",
+            _ => $"WriteObjectValue<{propertyType}{(includeNullableRef ? "?" : string.Empty)}>",
         };
     }
 }
